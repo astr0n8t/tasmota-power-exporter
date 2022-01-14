@@ -4,7 +4,12 @@ from dotenv import load_dotenv
 from flask import Flask
 app = Flask(__name__)
 
-def get_values(ip, user=None, password=None):
+load_dotenv()
+ip = os.getenv('DEVICE_IP')
+user = os.getenv('USER')
+password = os.getenv('PASSWORD')
+
+def get_values():
 
     url = 'http://' + ip + '/?m=1'
 
@@ -27,10 +32,13 @@ def get_values(ip, user=None, password=None):
 
 @app.route('/metrics')
 def return_metrics():
-    load_dotenv()
-    ip = os.getenv('DEVICE_IP')
-    user = os.getenv('USER')
-    password = os.getenv('PASSWORD')
 
+    response = ""
 
-    return(get_values(ip, user, password))
+    data = get_values()
+
+    for key in data:
+        line = key.lower().replace(" ", "_") + " " + data[key].split()[0] + '\n'
+        response += line
+
+    return(response)
