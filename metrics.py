@@ -1,4 +1,6 @@
 import requests
+import sys
+import signal
 from os import getenv
 from time import sleep
 from prometheus_client.core import GaugeMetricFamily, REGISTRY
@@ -46,6 +48,11 @@ class TasmotaCollector(object):
             values[label] = value
 
         return values
+
+def signal_handler(signal, frame):
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
 
 if __name__ == '__main__':
 
