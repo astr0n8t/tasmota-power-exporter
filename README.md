@@ -1,1 +1,1 @@
-# tasmota-power-prometheus
+# tasmota-power-exporter
