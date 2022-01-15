@@ -3,8 +3,9 @@ import sys
 import signal
 from os import getenv
 from time import sleep
-from prometheus_client.core import GaugeMetricFamily, REGISTRY
+from prometheus_client.core import GaugeMetricFamily, REGISTRY, CounterMetricFamily
 from prometheus_client import start_http_server
+
 
 class TasmotaCollector(object):
     def __init__(self):
@@ -24,9 +25,13 @@ class TasmotaCollector(object):
             unit = None
             if len(response[key].split()) > 1:
                 unit = response[key].split()[1]
-            g = GaugeMetricFamily(metric_name, key, labels=['device'], unit=unit)
-            g.add_metric([self.ip], metric)
-            yield g
+
+            if "today" in metric_name or "yesterday" in metric_name or "total" in metric_name:
+                r = CounterMetricFamily(metric_name, key, labels=['device'], unit=unit)
+            else:
+                r = GaugeMetricFamily(metric_name, key, labels=['device'], unit=unit)
+            r.add_metric([self.ip], metric)
+            yield r
 
     def fetch(self):
 
@@ -41,8 +46,9 @@ class TasmotaCollector(object):
 
         values = {}
 
+
         string_values = str(page.text).split("{s}")
-        for i in range(1,len(string_values)-1):
+        for i in range(1,len(string_values)):
             label = string_values[i].split("{m}")[0]
             value = string_values[i].split("{m}")[1].split("{e}")[0]
             values[label] = value
