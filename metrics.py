@@ -49,10 +49,15 @@ class TasmotaCollector(object):
 
         string_values = str(page.text).split("{s}")
         for i in range(1,len(string_values)):
-            label = string_values[i].split("{m}")[0]
-            value = string_values[i].split("{m}")[1].split("{e}")[0]
-            values[label] = value
+            try:
+                label = string_values[i].split("{m}")[0]
+                value = string_values[i].split("{m}")[1].split("{e}")[0]
+                if "<td" in value:
+                    value = value.replace("</td><td style='text-align:left'>", "").split("</td>")[0]
 
+                values[label] = value
+            except IndexError:
+                continue
         return values
 
 def signal_handler(signal, frame):
