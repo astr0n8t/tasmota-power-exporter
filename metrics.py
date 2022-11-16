@@ -58,10 +58,7 @@ class TasmotaCollector(object):
 
                 values[label] = value
             except IndexError:
-                print("Index Error")
                 continue
-            print(label)
-            print(value)
         return values
 
 def signal_handler(signal, frame):
