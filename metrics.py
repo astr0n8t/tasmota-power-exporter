@@ -53,7 +53,8 @@ class TasmotaCollector(object):
                 label = string_values[i].split("{m}")[0]
                 value = string_values[i].split("{m}")[1].split("{e}")[0]
                 if "<td" in value:
-                    value = value.replace("</td><td style='text-align:left'>", "").split("</td>")[0]
+                    value = value.replace("</td><td style='text-align:left'>", "")
+                    value = value.replace("</td><td>&nbsp;</td><td>", "")
 
                 values[label] = value
             except IndexError:
