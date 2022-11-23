@@ -84,7 +84,7 @@ jobs:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ghcr.io/astr0n8t/caddy-cloudflare:latest
+            ghcr.io/astr0n8t/tasmota-power-exporter:latest
             ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
