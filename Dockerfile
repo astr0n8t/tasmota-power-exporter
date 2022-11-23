@@ -1,9 +1,10 @@
 FROM python:alpine
 RUN apk add --no-cache tini
 
-ADD metrics.py /metrics.py
-ADD requirements.txt /requirements.txt
-RUN pip install -r /requirements.txt
+ADD metrics.py /app/metrics.py
+ADD requirements.txt /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt && \
+  rm -rf /tmp/requirements.txt
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["python" , "/metrics.py"]
+CMD ["python" , "/app/metrics.py"]
