@@ -23,21 +23,34 @@ Docker-Compose:
     ports:
     - 8000:8000
     environment:
-    - DEVICE_IP=<Tasmota IP>
-    - USER=<user>
-    - PASSWORD=<password>
+    - EXPORTER_PORT: 8000 #optional, default to 8000
 ```
 
 Prometheus Config:
 ```
 - job_name: "tasmota"
-
-    # metrics_path defaults to '/metrics'
-    # scheme defaults to 'http'.
-
+    metrics_path: /probe
+    scheme: http # change it to https if needed
     static_configs:
-        - targets: ["127.0.0.1:8000"]
+      - targets:
+        - 192.168.1.180
+        - 192.168.1.190
+        - xxx.yyy.zzz.hhh
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: device
+      - target_label: __address__
+        replacement: 127.0.0.1:8000
+    # If password protected
+    # - target_label: __param_user
+    #   replacement: 'admin'
+    # - target_label: __param_password
+    #   replacement: 'mysupernotsimplepassword'
 ```
+
+we can specify our targets in target section.
 
 ## Development
 
@@ -47,6 +60,7 @@ Perform the following:
 git clone https://github.com/astr0n8t/tasmota-power-exporter.git
 cd tasmota-power-exporter
 pip install -r requirements.txt
+pip install -r requirements-dev.txt # unit tests
 ```
 
 All of the exporter code is found in [metrics.py](./metrics.py).
@@ -54,3 +68,4 @@ All of the exporter code is found in [metrics.py](./metrics.py).
 ## Contributors
 
 - [Nathan Higley](https://github.com/astr0n8t)
+- [brokenpip3](https://github.com/brokenpip3)

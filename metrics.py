@@ -1,80 +1,107 @@
-import requests
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import sys
 import signal
+import httpx
+import asyncio
+from prometheus_client.core import GaugeMetricFamily, CounterMetricFamily
+from prometheus_client import generate_latest, CollectorRegistry
+from fastapi import FastAPI, Query, HTTPException
+from fastapi.responses import PlainTextResponse, Response
+import uvicorn
 from os import getenv
-from time import sleep
-from prometheus_client.core import GaugeMetricFamily, REGISTRY, CounterMetricFamily
-from prometheus_client import start_http_server
 
 
 class TasmotaCollector(object):
-    def __init__(self):
-        self.ip = getenv('DEVICE_IP')
-        if not self.ip:
-            self.ip = "192.168.4.1"
-        self.user = getenv('USER')
-        self.password = getenv('PASSWORD')
+    def __init__(self, ip, user=None, password=None):
+        self.ip = ip
+        self.user = user
+        self.password = password
 
     def collect(self):
-
-        response = self.fetch()
+        response = asyncio.run(self.fetch())
 
         for key in response:
-            metric_name = "tasmota_" + key.lower().replace(" ", "_") 
+            metric_name = "tasmota_" + key.lower().replace(" ", "_")
             metric = response[key].split()[0]
             unit = None
             if len(response[key].split()) > 1:
                 unit = response[key].split()[1]
 
-            if "today" in metric_name or "yesterday" in metric_name or "total" in metric_name:
-                r = CounterMetricFamily(metric_name, key, labels=['device'], unit=unit)
+            if (
+                "today" in metric_name
+                or "yesterday" in metric_name
+                or "total" in metric_name
+            ):
+                r = CounterMetricFamily(metric_name, key, labels=["device"], unit=unit)
             else:
-                r = GaugeMetricFamily(metric_name, key, labels=['device'], unit=unit)
+                r = GaugeMetricFamily(metric_name, key, labels=["device"], unit=unit)
             r.add_metric([self.ip], metric)
             yield r
 
-    def fetch(self):
+    async def fetch(self):
+        url = f"http://{self.ip}/?m=1"
+        async with httpx.AsyncClient() as client:
+            if self.user and self.password:
+                auth = httpx.BasicAuth(self.user, self.password)
+            else:
+                auth = None
 
-        url = 'http://' + self.ip + '/?m=1'
+            page = await client.get(url, auth=auth)
 
-        session = requests.Session()
-        
-        if self.user and self.password:
-            session.auth = (self.user, self.password)
+            if page.status_code != 200:
+                raise HTTPException(
+                    status_code=page.status_code,
+                    detail="Failed to fetch data from device",
+                )
 
-        page = session.get(url)
+            values = {}
+            string_values = str(page.text).split("{s}")
+            for i in range(1, len(string_values)):
+                try:
+                    label = string_values[i].split("{m}")[0]
+                    value = string_values[i].split("{m}")[1].split("{e}")[0]
+                    if "<td" in value:
+                        value = value.replace("</td><td style='text-align:left'>", "")
+                        value = value.replace("</td><td>&nbsp;</td><td>", "")
+                    values[label] = value
+                except IndexError:
+                    continue
+            return values
 
-        values = {}
+
+app = FastAPI()
 
 
-        string_values = str(page.text).split("{s}")
-        for i in range(1,len(string_values)):
-            try:
-                label = string_values[i].split("{m}")[0]
-                value = string_values[i].split("{m}")[1].split("{e}")[0]
-                if "<td" in value:
-                    value = value.replace("</td><td style='text-align:left'>", "")
-                    value = value.replace("</td><td>&nbsp;</td><td>", "")
+@app.get("/", response_class=PlainTextResponse)
+def root():
+    return (
+        "Welcome to Tasmota prometheus exporter!\n"
+        "Use the /probe endpoint with the 'target' query parameter to get metrics from a Tasmota device.\n"
+        "Example: /probe?target=192.168.1.1\n"
+    )
 
-                values[label] = value
-            except IndexError:
-                continue
-        return values
+
+@app.get("/probe")
+def probe(target: str = Query(...), user: str = None, password: str = None):
+    try:
+        registry = CollectorRegistry()
+        collector = TasmotaCollector(target, user, password)
+        registry.register(collector)
+        metrics = generate_latest(registry)
+        return Response(content=metrics, media_type="text/plain")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 def signal_handler(signal, frame):
+    print(f"Signal {signal} caught, shutting down gracefully...")
     sys.exit(0)
 
-signal.signal(signal.SIGINT, signal_handler)
 
-if __name__ == '__main__':
-
-    port = getenv('EXPORTER_PORT')
-    if not port:
-        port = 8000
-
-    start_http_server(int(port))
-    REGISTRY.register(TasmotaCollector())
-
-    while(True):
-        sleep(1)
-    
+if __name__ == "__main__":
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    port = int(getenv("EXPORTER_PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
