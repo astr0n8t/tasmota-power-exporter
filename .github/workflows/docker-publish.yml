@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
@@ -66,7 +66,7 @@ jobs:
       # https://github.com/docker/metadata-action
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v5.8.0
+        uses: docker/metadata-action@v5.9.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
