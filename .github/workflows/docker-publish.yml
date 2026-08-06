@@ -43,7 +43,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: sigstore/cosign-installer@v4.1.2
         with:
-          cosign-release: 'v3.1.2'
+          cosign-release: 'v3.1.3'
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -56,7 +56,7 @@ jobs:
       # https://github.com/docker/login-action
       - name: Log into registry ${{ env.REGISTRY }}
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v4.5.1
+        uses: docker/login-action@v4.6.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
